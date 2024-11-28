@@ -1,16 +1,17 @@
 import json
 import os
 import random
+import re
 import string
 
 import redis
 from flask import Flask, request, redirect, abort, jsonify
 from dotenv import load_dotenv
 
+load_dotenv()
 app = Flask(__name__)
 r = redis.Redis(host=os.getenv('REDIS_HOST', 'redis'), port=os.getenv('REDIS_PORT', 6379), decode_responses=True)
-
-load_dotenv()
+invalid_chars = ['_', '/', '\\', '?']
 
 
 def documentation(code=400):
@@ -25,23 +26,32 @@ def documentation(code=400):
 def generate_random_keys(length=5):
     while True:
         new_key = ''.join(random.choices(string.ascii_letters + string.digits, k=length))
+
         if not r.exists(new_key):
             return new_key
         else:
-            r.set(
-                "randomkey_generate_collision_count",
-                (r.get("randomkey_generate_collision_count") if r.get(
-                    "randomkey_generate_collision_count") is not None else 0) + 1,
-                ex=60 * 60 * 24
-            )
+            collision_key = "randomkey_generate_collision_count"
+            collision_count = r.incr(collision_key)
+
+            if collision_count == 1:
+                r.expire(collision_key, 60 * 60 * 24)
 
 
 def get_key(key):
     return jsonify({"key": key, "data": r.hgetall(key), "ttl": r.ttl(key)})
 
+def sanitize_key(key):
+    if not re.match(r'^[a-zA-Z0-9\-]+$', key):
+        raise ValueError("Invalid key format.")
+    return key
 
 @app.route('/<key>')
 def shortlink(key):
+    try:
+        key = sanitize_key(key)
+    except ValueError as e:
+        return documentation(code=400)
+
     data = get_key(key)
 
     if not data or not isinstance(data.json, dict):
@@ -69,10 +79,13 @@ def index():
 
 @app.route('/_set', methods=['GET', 'POST', 'DELETE'])
 def set_shortlink():
-    key = request.json.get('key')
+    try:
+        key = sanitize_key(request.json.get('key'))
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    
     target = request.json.get('target')
     password = request.json.get('password')
-
 
     max_valid_time = os.getenv('MAX_VALID_TIME', None)
     max_valid_time = int(max_valid_time) if max_valid_time is not None else None
@@ -91,7 +104,6 @@ def set_shortlink():
         else:
             abort(404)
     elif request.method == 'POST' and target is not None:
-        invalid_chars = ['_', '/', '\\', '?']
         if key is not None and any(char in key for char in invalid_chars):
             return jsonify({"error": "Key cannot contain '_', '/', '\\', '?'."}), 400
         key = key if key is not None else generate_random_keys()
@@ -121,6 +133,7 @@ def set_shortlink():
 @app.route('/_list', methods=['GET'])
 def list_shortlinks():
     per_page = request.args.get('per_page', 100, type=int)
+    per_page = min(per_page, 512)  # Limit per_page to a maximum of 512
     page = request.args.get('page', 1, type=int)
 
     start = (page - 1) * per_page
@@ -131,7 +144,7 @@ def list_shortlinks():
 
     paginated_keys = all_keys[start:end]
 
-    shortlinks = {key: get_key(key).json for key in paginated_keys}
+    shortlinks = {key: {k: v for k, v in get_key(key).json.items() if k != 'password'} for key in paginated_keys}
 
     return {
         'shortlinks': shortlinks,

@@ -11,7 +11,7 @@ Host: {{base_url}}
 
 ### SET A SHORT LINK
 # target: Your target url e.g. https://www.stayforge.io
-# key: Your shortened url like /stayforge, cannot start with '_'.
+# key: Your shortened url like /stayforge, allow r'^[a-zA-Z0-9\-]+$'.
 # password: Set a password to prevent your short link from being changed at will.
 # valid_time: Default is 86400s or setted MAX_VALID_TIME. The server may set a maximum capped number of seconds.
 POST /_set
