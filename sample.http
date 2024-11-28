@@ -1,0 +1,47 @@
+# Here is Sample requests
+
+### VARIABLES
+@base_url = localhost:5000
+
+### INDEX
+# If your User-Agent is any of the following, you will be sent 301 to the set INDEX_REDIRECT_URL.
+# 'chrome', 'firefox', 'safari', 'edge', 'opera', 'vivaldi', 'brave', 'internet explorer', 'uc browser', 'yandex'
+GET /
+Host: {{base_url}}
+
+### SET A SHORT LINK
+# target: Your target url e.g. https://www.stayforge.io
+# key: Your shortened url like /stayforge, cannot start with '_'.
+# password: Set a password to prevent your short link from being changed at will.
+# valid_time: Default is 86400s or setted MAX_VALID_TIME. The server may set a maximum capped number of seconds.
+POST /_set
+Host: {{base_url}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "target": "https://www.stayforge.io",
+  "key": "stayforge",
+  "password": "123456",
+  "valid_time": 86400
+}
+
+### GET LIST OF SHORT LINK
+GET /_list
+Host: {{base_url}}
+Authorization: Bearer {{token}}
+
+### SHORT LINK PROCESSING ROUTING
+GET /stayforge
+Host: {{base_url}}
+
+### DELETE A SHORT LINK
+DELETE /_set
+Host: {{base_url}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "key": "stayforge",
+  "password": "123456"
+}

@@ -1,0 +1,33 @@
+services:
+  redis:
+    image: redis:latest
+    volumes:
+      - ./redis.conf:/usr/local/etc/redis/redis.conf
+      - redis_data:/var/lib/redis
+    command: [ "redis-server", "/usr/local/etc/redis/redis.conf" ]
+    networks:
+      - redis_network
+
+  tinyway_service:
+    image: tinyway
+    ports:
+      - "5050:5000"
+    environment:
+      - DOMAIN=localhost
+      - INDEX_REDIRECT_URL=https://www.google.com
+      - SECRET_KEY=<update_me>
+    restart: always
+    networks:
+      - redis_network
+      - tinyway_network
+
+volumes:
+  redis_data:
+  redis_logs:
+    driver: local
+
+networks:
+  redis_network:
+    internal: true
+  tinyway_network:
+    name: tinyway_network # Ensure use a correct label or remove it if not necessary
