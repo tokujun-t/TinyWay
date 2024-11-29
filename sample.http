@@ -1,7 +1,8 @@
 # Here is Sample requests
 
 ### VARIABLES
-@base_url = localhost:5000
+@base_url = localhost
+@token = simple-token
 
 ### INDEX
 # If your User-Agent is any of the following, you will be sent 301 to the set INDEX_REDIRECT_URL.
